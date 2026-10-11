@@ -1,43 +1,33 @@
-# ROLLOW Cafe Management — PRD
-## Problem
-Integrated cafe management app for ROLLOW (POS, recipes/HPP, inventory per location, stock opname, waste, purchasing, finance, payroll, attendance, marketing, reports) with role-based access: Owner, Manager, Supervisor, Finance, Marketing, Crew. Responsive phone/tablet/web. Multi-outlet ready.
-## Architecture
-- Backend: FastAPI single server.py, MongoDB (uuid `id`, `outlet_id` on every doc), JWT (bcrypt) + Emergent Google sign-in (/api/auth/session, only for emails registered by Owner, returns ROLLOW JWT).
-- Frontend: Expo Router; tabs Beranda/Kasir/Stok/Lainnya (role-hidden), module screens under /m/*. Theme terracotta.
-## Implemented (2026-06)
-- Auth + RBAC (backend authoritative), demo accounts (see test_credentials.md)
-- POS: categories, cart, promo, Cash/QRIS/Transfer/Debit, receipt, close register
-- Sale -> recipe -> stock deduction (bar/kitchen) -> HPP/profit -> finance income
-- Inventory in/out/transfer, min stock, low stock alerts, PR from low stock
-- Stock opname with diff + value, adjusts stock; reports daily/monthly
-- Waste with approval -> deduct; Purchasing request -> approve -> receive (gudang + expense)
-- Finance manual tx + auto entries; Payroll from attendance -> pay -> expense
-- Attendance clock in/out/izin/sakit/libur/lembur; Marketing promos/campaign + performance
-- Reports: sales, inventory, opname, waste, purchasing, finance/cashflow, payroll, attendance, marketing
-## Iteration 2 (2026-06)
-- Riwayat Nota: recap per nota + overall recap (day/month, status filter); report type "nota"
-- Void & Batalkan pesanan (SPV+ with reason): reverses stock, finance (negative income), loyalty points
-- Customers & loyalty points (points per nota, min purchase, bonus per amount) — settings by Owner/Finance
-- Tax (name, %, default on) + service charge; tax toggle in POS; tax recorded as separate finance income
-- Tickets: customer / bar-checker / kitchen (menu.station), receipt template settings (name, address, phone, header, WiFi, footer, toggles), live preview, print via expo-print (58mm)
-## Iteration 3 (2026-06)
-- Shared outlet tablet: register sessions (open with opening cash; first cashier = Shift 1), PIN-based shift handover without closing, sales carry shift holder as cashier; close register shows per-shift recap & expected cash
-- Kiosk attendance on POS tab (name + PIN): clock in/out, izin, sakit, libur, lembur (pending ACC by owner/manager/SPV)
-- Realtime attendance (POS sheet + dashboard, 30s polling)
-- Payroll auto: hourly rate x worked hours + base + allowance + approved overtime - late penalty (tolerance, fixed/per-minute in settings); realtime payroll estimate; rate editor (owner/finance)
-- Tickets: Bar/Checker always printed (all items, simple), Dapur kitchen-only simple; customer receipt full
-## Backlog
-- P0: Direct Bluetooth ESC/POS printing (needs dev build; escposText() 32/48-col ready in src/receipt.tsx)
-- P1: Multi-outlet switcher UI, shift scheduling, assign opname tasks to crew
-- P2: Export Excel/PDF, supplier management, split server.py into routers
+# RLW — Outlet & Cashier Management (PRD)
 
-## Iteration 4 (2026-10) — Revisi besar kasir/keuangan
-- Config registries + CRUD + seed: payment_methods, expense_categories, fund_pockets (alloc %/fixed), payroll_components (bonus/deduction, metode fixed/percent_base/per_late/per_hour/manual), platforms (komisi/biaya) — endpoint /api/config/{kind}, editor generik /m/config
-- Cetak nota thermal 58mm & 80mm (kolom 32/48) + escposText() siap Bluetooth; cetak-ulang + log cetak (print_logs/print_count) tanpa ubah transaksi
-- Penyesuaian pembayaran nota /api/sales/{id}/adjust (refund/additional -> final_total, audit)
-- Pengeluaran/petty cash /api/expenses (+foto base64, approval opsional), decide; finance pakai kategori registry + kantong
-- Penjualan platform eksternal /api/external-sales (harga khusus, komisi, potong stok via resep, dedup order_no, channel=platform)
-- Finance summary /api/finance/summary: omzet gross/net/refund/hpp, by_method, by_channel, alokasi kantong vs realisasi, expenses per kategori
-- Audit viewer /api/audit + /m/audit (filter entity/date/user); mode stok detailed/simple (POS deduct ke gudang saat simple); QRIS/MDR settings UI
-- Payroll fix: slip pakai komponen (snapshot), UI pilih komponen (bug bonus/deduction lama teratasi)
-- Input item manual di POS biasa (nama+qty+harga, bukan katalog, tidak potong stok, HPP 0, kena pajak/service) — SaleItem.menu_id opsional + name/price; tombol "Item Manual" di action bar & keranjang
+## Original Problem Statement
+Import project from GitHub `trecianayuli04-ctrl/rlwapp` (branch main), set up & install dependencies, then revise/develop the RLW cashier + outlet management app: rebrand ROLLOW→RLW with white + dark leafy green (remove orange, remove cafe photo); external orders without price; add-item from menu + manual with stock linking; real-time Kas Outlet dashboard; separate Kas Outlet vs Finance expenses; attendance with live camera photo. References: ESB Dashboard (layout/report inspiration, not visual copy).
+
+## Architecture
+- **Frontend**: Expo (expo-router) React Native **Web**, served by Metro dev on port 3000. Theme in `src/theme.ts` (centralized tokens). API base via `EXPO_PUBLIC_BACKEND_URL`.
+- **Backend**: FastAPI + Motor/MongoDB, all routes under `/api`. JWT auth + Emergent Google session. Single outlet (`OUTLET="rollow-main"`).
+- Supervisor runs `yarn start` (→ `expo start --port 3000`) and uvicorn 8001.
+
+## Users / Roles
+Owner, Manager, Supervisor, Finance, Marketing, Crew (role-based PERM map in server.py + src/auth.tsx).
+
+## Core Requirements (static)
+Sales/POS, inventory & recipes (auto stock deduct), register/shift cash, finance ledger, expenses, attendance+payroll, purchasing, waste, promos, customers/loyalty, reports.
+
+## Implemented (2026-06)
+- **Import & setup**: cloned rlwapp, installed backend (pip) + frontend (yarn) deps; added backend env (JWT_SECRET, OWNER/DEMO creds); seeds owner + 5 demo users (password `Rollow@2026`, PIN 1234).
+- **Rebrand + theme**: app name RLW; white + dark leafy green (`#1B5E20`); removed orange; removed cafe hero photo on login (clean logo layout).
+- **External orders without price**: `ExternalOrderSheet` — order no. + items only (menu chips reduce stock, manual items optionally linked to a menu); backend `/external-sales` accepts price 0, skips zero income line.
+- **Menu + manual item with stock linking** (POS): manual sheet has "Hubungkan ke menu" chips; linked item added as menu line (stock auto-decrements), free item has no stock link.
+- **Kas Outlet real-time** (`/m/cash`, backend `/api/cash/outlet`): balance = opening + cash-in − cash-out (cash/session-tied only), live history; Finance-sourced expenses do NOT reduce it.
+- **Expense separation** (`/m/finance`): source = Kas Outlet (`kasir`, reduces drawer) vs Finance (`finance`, does not); tabs Semua|Kas Outlet|Finance, search filter, per-source + combined totals, green/neutral badges. Backend ties session cash to `source=="kasir" && method=="Cash"`.
+- **Camera attendance**: `src/camera.tsx` (native image-picker) + `src/camera.web.tsx` (getUserMedia live capture, graceful error on denial). Clock in/out on dashboard + Absensi open camera; photo stored with record and shown in history. `AttendanceIn.photo` added backend.
+
+## Verification
+testing_agent iteration_1: frontend 100% — all 6 features verified with concrete values (Kas Outlet Rp40.000, Finance split 10k/25k/35k, external sheet zero price inputs, manual menu-link chips, camera overlay). Backend verified via curl.
+
+## Backlog / Next (P1/P2)
+- P1: Apply camera to POS kiosk attendance (`KioskAttendance`).
+- P1: Kas Outlet manual "uang masuk/tambah kas" entry UI.
+- P2: Finance date-range & category dropdown filters.
+- P2: Export Kas Outlet / expense reports to PDF/print.
