@@ -42,7 +42,7 @@ export default function Login() {
             <Icon name="leaf" size={26} color={colors.onBrandPrimary} />
           </View>
           <View>
-            <Text style={s.brand}>RLW</Text>
+            <Text style={s.brand}>ROOTS</Text>
             <Text style={s.sub}>Sistem Manajemen Outlet</Text>
           </View>
         </View>

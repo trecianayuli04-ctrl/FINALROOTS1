@@ -26,6 +26,9 @@ Sales/POS, inventory & recipes (auto stock deduct), register/shift cash, finance
 ## Verification
 testing_agent iteration_1: frontend 100% — all 6 features verified with concrete values (Kas Outlet Rp40.000, Finance split 10k/25k/35k, external sheet zero price inputs, manual menu-link chips, camera overlay). Backend verified via curl.
 
+## Changelog (2026-10)
+- **Login logo rename**: brand text on login page changed "RLW" → "ROOTS" (`app/login.tsx` only, per user request — all other UI text, receipt, backend prefix `RLW-`, and DB seed values intentionally kept as RLW). Verified via screenshot.
+
 ## Backlog / Next (P1/P2)
 - P1: Apply camera to POS kiosk attendance (`KioskAttendance`).
 - P1: Kas Outlet manual "uang masuk/tambah kas" entry UI.
